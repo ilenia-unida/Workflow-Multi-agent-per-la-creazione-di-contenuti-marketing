@@ -1,0 +1,792 @@
+{
+  "name": "Flusso 15",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -48
+      ],
+      "id": "fd058c9a-560f-45dc-82a6-2092c6e4838a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Sei un Brand Strategist senior specializzato in campagne pubblicitarie multicanale.\n\nIl tuo compito è:\n1. Generare un brand tone chiaro, coerente e applicabile a contenuti futuri.\n2. Creare un piano editoriale completo basato su 3 fasi:\n   - Fase 1: Engagement iniziale\n   - Fase 2: Mantenere l’hype\n   - Fase 3: Pre-lancio\n\nIl piano editoriale deve includere:\n- Obiettivo della fase\n- Canali consigliati (es. Facebook, TikTok, LinkedIn, Email, Ads…)\n- Tipologia dei contenuti\n- Frequenza consigliata\n- CTA principali per ogni fase\n\nIMPORTANTE:\n- Scegli tu un argomento e crea una campagna pubblicitaria coerente.\n- L’output deve essere SOLO JSON valido, senza testo fuori dal JSON.\n- Includi questi campi: \n{\n  \"argomento_campagna\": \"...\",\n  \"brand_tone\": \"...\",\n  \"fase1_engagement\": \"...\",\n  \"fase2_hype\": \"...\",\n  \"fase3_pre_lancio\": \"...\"\n}\n\nNon usare Markdown, bullet point esterni o spiegazioni. Solo JSON valido.\n",
+        "options": {
+          "systemMessage": "Sei un Brand Strategist.\nGenera un brand tone coerente e un piano editoriale strutturato in 3 fasi:\n\nEngagement iniziale, 2) Mantenere hype, 3) Pre-lancio.\nOutput JSON valido."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        272,
+        -48
+      ],
+      "id": "3f162031-75dc-475e-8f56-cdd3e79aea3c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        288,
+        112
+      ],
+      "id": "5bd00a4d-b15f-4a33-bf16-eb4440a3a54c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6xAGhA9zHQNia7ZG",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Recupera l'output grezzo dell'AI\nlet raw = $json.output || \"\";\n\n// 2. Rimuove blocchi markdown: ```json, ``` e simili\nraw = raw\n  .replace(/```json/gi, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\n// 3. Cerca la prima e ultima graffa valida\nconst first = raw.indexOf(\"{\");\nconst last = raw.lastIndexOf(\"}\");\n\nif (first === -1 || last === -1) {\n  throw new Error(\"Nessun JSON trovato nell'output dell'AI Agent.\");\n}\n\n// 4. Estrarre solo il JSON pulito\nconst jsonString = raw.substring(first, last + 1);\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonString);\n} catch (err) {\n  throw new Error(\"Errore parsing JSON dall'AI Agent: \" + err.message + \"\\nJSON ricevuto:\\n\" + jsonString);\n}\n\n// 5. Preparare l'output per Google Docs Update\nreturn [\n  {\n    json: {\n      argomento_campagna: parsed.argomento_campagna || \"\",\n      brand_tone: parsed.brand_tone || \"\",\n      fase1_engagement: JSON.stringify(parsed.fase1_engagement, null, 2) || \"\",\n      fase2_hype: JSON.stringify(parsed.fase2_hype, null, 2) || \"\",\n      fase3_pre_lancio: JSON.stringify(parsed.fase3_pre_lancio, null, 2) || \"\"\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -48
+      ],
+      "id": "0497f856-2612-4f35-a5db-d81a52b5269a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1Lu-r7YOEsRqu9DbsE1BFH4vgkCez1UQFyH37wWJ208E/edit?tab=t.0",
+        "simple": false,
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "=Brand Tone: {{ $json[\"brand_tone\"] }} Argomento della Campagna: {{ $json[\"argomento_campagna\"] }} Fase 1 – Engagement Iniziale: {{ $json[\"fase1_engagement\"] }} Fase 2 – Mantenere l'Hype: {{ $json[\"fase2_hype\"] }} Fase 3 – Pre-Lancio: {{ $json[\"fase3_pre_lancio\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -48
+      ],
+      "id": "6126e145-3df7-4710-a2b2-6f0adce44357",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -64,
+        400
+      ],
+      "id": "ad60aa85-41a0-40f8-9759-045c233ecbca",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/1Lu-r7YOEsRqu9DbsE1BFH4vgkCez1UQFyH37wWJ208E/edit?tab=t.0",
+        "simple": false
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        160,
+        400
+      ],
+      "id": "5811c3b8-a349-4e3b-88f1-1702e9c3a464",
+      "name": "Get a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Sei un assistente esperto di marketing digitale. Riceverai il contenuto di un documento che descrive un piano editoriale. Il testo contiene informazioni su:\n\n- Brand Tone\n- Argomento della campagna\n- Tre fasi di marketing (Engagement iniziale, Mantenere l'hype, Pre-lancio) con:\n    - obiettivo_della_fase\n    - canali_consigliati\n    - tipologia_dei_contenuti\n    - frequenza_consigliata\n    - cta_principali\n\nIl tuo compito è trasformare questo testo in un JSON strutturato così:\n\n{\n  \"brand_tone\": \"...\",\n  \"argomento_campagna\": \"...\",\n  \"fasi\": [\n    {\n      \"nome\": \"Fase 1 – Engagement Iniziale\",\n      \"obiettivo_della_fase\": \"...\",\n      \"canali_consigliati\": \"...\",\n      \"tipologia_dei_contenuti\": \"...\",\n      \"frequenza_consigliata\": \"...\",\n      \"cta_principali\": \"...\"\n    },\n    {\n      \"nome\": \"Fase 2 – Mantenere l'Hype\",\n      ...\n    },\n    {\n      \"nome\": \"Fase 3 – Pre-Lancio\",\n      ...\n    }\n  ]\n}\n\nESTRAI **solo il testo rilevante**, rimuovendo simboli extra, numerazioni o formattazioni.  \nRestituisci **un JSON valido**, pronto per essere usato in un nodo `Code` o `Update`.\n\n### INPUT\n```text\n{{$json[\"docText\"]}}\n",
+        "options": {
+          "systemMessage": "Estrai dal documento le tre fasi del piano editoriale.\nOutput ONLY JSON con:\n{ fase1, fase2, fase3 }"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        704,
+        400
+      ],
+      "id": "64b78eb3-e573-41dd-ae94-b15f809e3049",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        688,
+        640
+      ],
+      "id": "3cd820f8-ecea-4766-a7d6-b3008e1c8d8c",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6xAGhA9zHQNia7ZG",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"nome\"]}}\n\n",
+                    "rightValue": "Fase 1 – Engagement Iniziale",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "e7adf9a5-7f0b-4f51-8dd5-05f8296109e0"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d065fb24-de55-41d5-bb38-8d3ee317d8dc",
+                    "leftValue": "={{$json[\"nome\"]}}",
+                    "rightValue": "Fase 2 – Mantenere l'Hype",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6aac16c1-2571-47f1-b61c-98b18f3097cd",
+                    "leftValue": "={{$json[\"nome\"]}}",
+                    "rightValue": "Fase 3 – Pre-Lancio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        368
+      ],
+      "id": "4637e2aa-1992-4960-ad10-978a315302b6",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n    // Estrai l'output dell'Agent (può essere nidificato)\n    let input = '';\n    if ($json.output) {\n        input = $json.output;\n    } else if ($json.body && $json.body.content) {\n        // concatena testo se content è un array di blocchi\n        input = $json.body.content.map(c => c.text || '').join(' ').trim();\n    } else {\n        throw new Error(\"Nessun testo rilevabile dall'input dell'Agent\");\n    }\n\n    // Pulisci eventuali backtick e tag ```json\n    const clean = input.replace(/```json\\s*|```/g, '').trim();\n\n    // Controllo che non sia solo testo di richiesta\n    if (clean.startsWith(\"Si prega di fornire\")) {\n        throw new Error(\"L'Agent non ha restituito JSON valido, ma una richiesta di testo.\");\n    }\n\n    // Parse JSON pulito\n    const data = JSON.parse(clean);\n\n    // Controlla che ci siano le fasi\n    if (!data.fasi || !Array.isArray(data.fasi)) {\n        throw new Error(\"Il JSON non contiene la chiave 'fasi' o non è un array.\");\n    }\n\n    // Genera un item per ogni fase\n    return data.fasi.map(fase => ({\n        json: fase\n    }));\n\n} catch (error) {\n    // In caso di errore, ritorna messaggio di errore come item\n    return [{\n        json: { error: error.message }\n    }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        400
+      ],
+      "id": "d9198a12-72a8-4bf0-aa9a-02b2388ebbed",
+      "name": "Estrai le fasi dall’output dell’agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Sei un assistente esperto di marketing. Riceverai come input un oggetto JSON con i dettagli della Fase 1 – Engagement Iniziale del piano editoriale.\n\nIl tuo compito è generare una proposta sintetica, chiara e strutturata di contenuti da pubblicare sui canali indicati, seguendo fedelmente le informazioni passate nello JSON.\n\n### ISTRUZIONI:\n1. NON reinventare la strategia.\n2. Usa esclusivamente i campi ricevuti in input:  \n   - nome  \n   - obiettivo_della_fase  \n   - canali_consigliati  \n   - tipologia_dei_contenuti  \n   - frequenza_consigliata  \n   - cta_principali\n3. Con questi dati, genera:\n   - 5 idee di contenuti specifiche e concrete per i canali indicati\n   - 1 micro-calendario settimanale (chi fa cosa e quando)\n   - 3 CTA rafforzate coerenti con la fase\n   - 1 breve riepilogo del tono da utilizzare\n\n### OUTPUT:\nRispondi SOLO in JSON, senza testo prima o dopo, nel seguente formato:\n\n{\n  \"fase\": \"Fase 1 – Engagement Iniziale\",\n  \"contenuti_ideati\": [\n    \"idea 1\",\n    \"idea 2\",\n    \"idea 3\",\n    \"idea 4\",\n    \"idea 5\"\n  ],\n  \"micro_calendario\": {\n    \"lunedi\": \"\",\n    \"mercoledi\": \"\",\n    \"venerdi\": \"\"\n  },\n  \"cta_extra\": [\n    \"cta 1\",\n    \"cta 2\",\n    \"cta 3\"\n  ],\n  \"tono_comunicazione\": \"\"\n}\n\nAssicurati che l’output sia JSON valido al 100% (nessun commento, nessun markdown).\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1984,
+        224
+      ],
+      "id": "97e827c1-7fd9-4af2-8f64-f3c9fb4a05f2",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1648,
+        736
+      ],
+      "id": "045e3f10-6b0e-46e4-8cce-a55c7e86b0e9",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6xAGhA9zHQNia7ZG",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Sei un assistente specializzato nella creazione di contenuti editoriali per campagne marketing multicanale.\n\nRiceverai in input un oggetto JSON con i dettagli della **Fase 2 – Hype / Mantenimento dell’attenzione** del piano editoriale.  \nDevi restituire **ESCLUSIVAMENTE un oggetto JSON valido**, senza testo aggiuntivo, senza spiegazioni, senza markdown, senza backticks.\n\nObiettivo della fase: trasformare i campi ricevuti (nome, obiettivo, canali, contenuti, frequenza, CTA) in un output strutturato con contenuti editoriali pronti per essere scritti dentro Google Docs.\n\nIl JSON di risposta DEVE avere questa struttura:\n\n{\n  \"fase2_hype\": {\n    \"messaggi_chiave\": \"...\",\n    \"concept_creativi\": [...],\n    \"calendario_post\": [...],\n    \"idee_email\": [...],\n    \"azioni_engagement\": [...],\n    \"cta_specifiche\": [...]\n  }\n}\n\nLinee guida:\n- Non ripetere l’input: trasformalo in contenuti nuovi.\n- I concetti devono essere chiari, sintetici e editorialmente utilizzabili.\n- Le liste devono avere minimo 3–5 elementi.\n- Nessun markdown, nessun testo prima o dopo il JSON.\n- Il JSON deve essere valido al 100%.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1984,
+        480
+      ],
+      "id": "5ead02b3-8e6d-4cc3-9adb-6d8d9c2851d2",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Sei un assistente specializzato in strategie di pre-lancio per prodotti digitali e fisici.\n\nRiceverai in input un oggetto JSON contenente i dettagli della **Fase 3 – Pre-Lancio**.  \nIl tuo compito è generare un output in formato **JSON valido**, senza markdown, senza testo aggiuntivo.\n\nObiettivo: tradurre i campi ricevuti (nome, obiettivo, canali, contenuti, frequenza, CTA) in una strategia di pre-lancio strutturata, utile per creare contenuti finali in Google Docs.\n\nIl JSON di risposta DEVE avere questa forma:\n\n{\n  \"fase3_pre_lancio\": {\n    \"messaggi_chiave\": \"...\",\n    \"contenuti_da_pubblicare\": [...],\n    \"azioni_di_contatto_caldo\": [...],\n    \"email_sequence\": [...],\n    \"countdown_campaign\": [...],\n    \"cta_finali\": [...]\n  }\n}\n\nRegole molto importanti:\n- Non ripetere l’input: genera contenuti nuovi basati sui principi del pre-lancio.\n- Mantieni uno stile chiaro, diretto, orientato all’azione.\n- Ogni array deve contenere almeno 3 punti concreti.\n- NON inserire spiegazioni o testo esterno al JSON.\n- Il JSON deve essere completamente valido.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2000,
+        752
+      ],
+      "id": "8b9da156-b3a8-4942-b187-78c5a9ded1ab",
+      "name": "AI Agent4"
+    },
+    {
+      "parameters": {
+        "folderId": "1Jj86mioOLkm_kqor249ioti6OXrLvuuN",
+        "title": "Fase 1"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        80
+      ],
+      "id": "fb486709-78c6-4212-b7f0-1216f945e8ab",
+      "name": "Create a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1ZFzuDD3QhfKGXoDP0i1f6V8kRTtSyr3nTzmwajn53N0/edit?tab=t.0",
+        "simple": false,
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('AI Agent2').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2624,
+        224
+      ],
+      "id": "a5e651e1-0f76-46d7-8a93-b2e7bb19e9a6",
+      "name": "Update a document1",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "folderId": "1Jj86mioOLkm_kqor249ioti6OXrLvuuN",
+        "title": "Fase 2"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        320
+      ],
+      "id": "263ecd4f-6edb-4fe1-92d2-87a71d7f0f77",
+      "name": "Create a document1",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1o7EzfK7ZDVzxxYK-f0zys3wrnTuwmf3F0pUaU4InWc0/edit?tab=t.0",
+        "simple": false,
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('AI Agent3').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        480
+      ],
+      "id": "4188fb84-87d9-472b-befe-0cf535f13bde",
+      "name": "Update a document2",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "folderId": "1Jj86mioOLkm_kqor249ioti6OXrLvuuN",
+        "title": "Fase 3"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        608
+      ],
+      "id": "0e800254-1fa9-40e3-9ba8-7f6395f001ae",
+      "name": "Create a document2",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Function Node\nreturn [\n  {\n    json: {\n      docText: $json[\"body\"][\"content\"]\n        .map(block => block.text ? block.text : \"\")\n        .join(\"\\n\") // Unisce tutti i blocchi di testo\n        .trim()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        400
+      ],
+      "id": "7b83ca25-bc64-4403-add1-89c721e57eb6",
+      "name": "Converti in stringa"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1ArLtKOpIU0iE0qgrFKQ-I7OA5wpkrT16ajyqE5AFj8E/edit?tab=t.0",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('AI Agent4').item.json.output }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        752
+      ],
+      "id": "8445b256-9b0f-4a7f-82c2-2f87b8bfbd10",
+      "name": "Update a document3",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "770RF99Lz2sbGnDJ",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 Generazione & Inizio Flusso\n",
+        "height": 480,
+        "width": 1136,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -48,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "96559502-f4f5-43f9-b8a8-b12bb405bf97",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 Dettaglio e Specializzazione (Agenti Finali)",
+        "height": 1040,
+        "width": 1568,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1264,
+        64
+      ],
+      "typeVersion": 1,
+      "id": "12cd121b-7e4c-403f-bf22-67e65dfc086a",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 📑 Estrazione & Ristrutturazione",
+        "height": 512,
+        "width": 1472
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -240,
+        320
+      ],
+      "typeVersion": 1,
+      "id": "a8b78d9d-0123-4289-907e-04796a5747d9",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a document": {
+      "main": [
+        [
+          {
+            "node": "Converti in stringa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Estrai le fasi dall’output dell’agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estrai le fasi dall’output dell’agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update a document1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Update a document1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Create a document1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update a document2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document1": {
+      "main": [
+        [
+          {
+            "node": "Update a document2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent4": {
+      "main": [
+        [
+          {
+            "node": "Create a document2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update a document3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converti in stringa": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document2": {
+      "main": [
+        [
+          {
+            "node": "Update a document3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "41af40cf-0b2e-4ea1-95f5-ac69f038bdf7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3eade08974c65ea0e714de990b1c4d4deb3f525e0d19f574aa90538cacfd42e4"
+  },
+  "id": "xkAchnyJVzQRtFMU",
+  "tags": []
+}
